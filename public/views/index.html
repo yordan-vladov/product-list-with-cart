@@ -1,0 +1,208 @@
+{{define "index"}}
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="styles/style.css" />
+        <script
+            src="https://unpkg.com/htmx.org@2.0.1/dist/htmx.js"
+            integrity="sha384-gpIh5aLQ0qmX8kZdyhsd6jA24uKLkqIr1WAGtantR4KsS97l/NRBvh8/8OYGThAf"
+            crossorigin="anonymous"
+        ></script>
+        <title>Document</title>
+    </head>
+    <body>
+        <div class="main-sections">
+            <div class="product-section">
+                <h1>Desserts</h1>
+                <div class="products">
+                    {{range . }} {{template "product" .}} {{end}}
+                </div>
+            </div>
+            {{template "cart" (cartItems .)}}
+        </div>
+        <div id="confirmation-message"></div>
+        <script src="scripts/refreshQuantity.js"></script>
+    </body>
+</html>
+{{end}} {{define "quantity"}}
+<span
+    id="quantity-{{.Id}}"
+    class="product-quantity"
+    hx-get="/refresh-quantity/{{.Id}}"
+    hx-trigger="refreshQuantity"
+    >{{ .Quantity }}</span
+>
+{{end}} {{ define "cart" }}
+
+<div
+    id="cart-section"
+    class="cart-section"
+    hx-get="/cart"
+    hx-swap="outerHTML"
+    hx-trigger="click from:.update-cart"
+>
+    <div class="cart">
+        <h1>Your Cart ({{orderedItemsQuantity .}})</h1>
+        <!--
+        <div class="empty-cart-msg">
+            <img src="images/illustration-empty-cart.svg" alt="" />
+            <h2>Your added items will appear here</h2>
+        </div>
+        -->
+        {{if .}}
+        <div class="cart-items">
+            {{ range . }}
+            <div id="cart-item-{{.Id}}" class="cart-item">
+                <div class="cart-item-description">
+                    <h1>{{ .Name }}</h1>
+                    <div class="cart-item-price">
+                        <span class="quantity"> {{.Quantity}}x </span>
+                        <span class="singular-price">
+                            @ ${{ printf "%.2f" .Price }}
+                        </span>
+                        <span class="total-price">
+                            ${{ printf "%.2f" (mul .Price .Quantity) }}
+                        </span>
+                    </div>
+                </div>
+                <svg
+                    id="remove-item-{{.Id}}"
+                    class="icon-remove-item"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="10"
+                    height="10"
+                    fill="none"
+                    viewBox="0 0 10 10"
+                    hx-delete="/remove-cart-item/{{.Id}}"
+                    hx-trigger="click"
+                    hx-target="#cart-section"
+                    hx-swap="outerHTML"
+                    onclick="refreshQuantity({{.Id}})"
+                >
+                    <path
+                        fill="#CAAFA7"
+                        d="M8.375 9.375 5 6 1.625 9.375l-1-1L4 5 .625 1.625l1-1L5 4 8.375.625l1 1L6 5l3.375 3.375-1 1Z"
+                    />
+                </svg>
+            </div>
+            {{end}}
+        </div>
+        <div class="order-total">
+            <h2>Order Total</h2>
+            <h1>${{ printf "%.2f" (totalPayment .) }}</h1>
+        </div>
+
+        <div class="carbon-neutral-message">
+            <img src="images/icon-carbon-neutral.svg" alt="" />
+            <p>This is a <b>carbon-neutral</b> delivery</p>
+        </div>
+
+        <button
+            hx-post="/confirmation-message"
+            hx-target="#confirmation-message"
+            hx-swap="outerHTML"
+            class="confirm-order"
+        >
+            Confirm Order
+        </button>
+    </div>
+    {{else}}
+    <div class="empty-cart-msg">
+        <img src="images/illustration-empty-cart.svg" alt="" />
+        <h2>Your added items will appear here</h2>
+    </div>
+    {{end}}
+</div>
+
+{{end}} {{define "productButton"}}
+<button>
+    <div class="default-side">
+        <img src="images/icon-add-to-cart.svg" alt="" />
+        <span> Add to Cart </span>
+    </div>
+    <div class="hover-side">
+        <svg
+            hx-post="/decrement/{{ .Id }}"
+            hx-target="#product-{{ .Id }}"
+            hx-swap="outerHTML"
+            class="decrement update-cart"
+            xmlns="http://www.w3.org/2000/svg"
+            width="10"
+            height="2"
+            fill="none"
+            viewBox="0 0 10 2"
+        >
+            <path fill="#fff" d="M0 .375h10v1.25H0V.375Z" />
+        </svg>
+        {{template "quantity" .}}
+        <svg
+            hx-post="/increment/{{ .Id }}"
+            hx-target="#product-{{ .Id }}"
+            hx-swap="outerHTML"
+            class="increment update-cart"
+            xmlns="http://www.w3.org/2000/svg"
+            width="10"
+            height="10"
+            fill="none"
+            viewBox="0 0 10 10"
+        >
+            <path
+                fill="#fff"
+                d="M10 4.375H5.625V0h-1.25v4.375H0v1.25h4.375V10h1.25V5.625H10v-1.25Z"
+            />
+        </svg>
+    </div>
+</button>
+{{end}} {{define "confirmation-message"}}
+<div class="confirmation-message-container">
+    <div class="confirmation-message">
+        <img src="/images/icon-order-confirmed.svg" alt="" />
+        <div class="confirmation-message-header">
+            <h1>Order Confirmed</h1>
+            <p>We hope you enjoy your food!</p>
+        </div>
+
+        <div class="order-details">
+            <div class="ordered-items">
+                {{ range . }}
+                <div class="ordered-item">
+                    <img src="{{ .Image.Thumbnail }}" alt="" />
+                    <div class="item-details">
+                        <h1>{{ .Name }}</h1>
+                        <div class="price-and-quantity">
+                            <span class="quantity">{{ .Quantity }}x</span>
+                            <span class="price"
+                                >@ ${{ printf "%.2f" .Price }}</span
+                            >
+                        </div>
+                    </div>
+                    <h1 class="total-price">
+                        ${{ printf "%.2f" (mul .Price .Quantity) }}
+                    </h1>
+                </div>
+                {{end}}
+            </div>
+            <div class="order-total">
+                <p>Order Total</p>
+                <h1>${{ printf "%.2f" (totalPayment .) }}</h1>
+            </div>
+        </div>
+        <button class="confirm-order" onclick="location.reload()">
+            Start New Order
+        </button>
+    </div>
+</div>
+{{end}} {{define "product"}}
+<div
+    id="product-{{ .Id }}"
+    class="product {{ if gt .Quantity 0 }} added {{ end }}"
+>
+    <img src="{{ .Image.Desktop }}" alt="" />
+    {{ template "productButton" .}}
+    <h4>{{ .Category }}</h4>
+    <h2>{{ .Name }}</h2>
+    <h3>${{ printf "%.2f" .Price }}</h3>
+</div>
+{{end}}
